@@ -4,3 +4,5 @@
 /resources/test-directory/
 /ccc/
 /build/
+__pycache__/
+*.py[cod]

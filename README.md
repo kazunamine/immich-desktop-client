@@ -33,7 +33,7 @@ desktop to your Immich server.
 #### Windows
 
 1. Install with the Installer executable
-2. modify the config file in the .immich-desktop-client folder in your home directory
+2. modify the config file in the `.buicha-photo` folder in your home directory
 3. enjoy
 
 #### Other Platforms
@@ -43,7 +43,7 @@ theoretically the python script is cross platform, therefore it should be execut
 ## Configuration
 
 > [!NOTE]
-> The config file __MUST__ be in the `.immich-desktop-client` folder in your home directory!
+> The config file __MUST__ be in the `.buicha-photo` folder in your home directory!
 
 ### Configuration Fields
 
@@ -77,8 +77,8 @@ watchdog:
 
 ## Build it yourself
 
-1. run ``pyinstaller -n immich-dsektop-client -F src/main.py``
-2. run ``resources\installer-script.iss`` with Inno Setup
+1. run ``python -m PyInstaller -n buicha-photo --noconsole --onefile --icon resources/icon.ico src/main.py`` (the ``--noconsole`` flag hides the console window; the tray icon still appears)
+2. run ``resources\installer-script.iss`` with Inno Setup (compiles ``dist\buicha-photo-installer.exe``)
 
 ## Roadmap
 

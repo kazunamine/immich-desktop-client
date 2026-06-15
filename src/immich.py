@@ -4,7 +4,6 @@ import json
 import os.path
 import shelve
 import socket
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from time import sleep
@@ -18,7 +17,7 @@ class Immich:
         self.__apiKey = api_key
 
         if shelve_path is None:
-            self.__shelve_path = str(Path.home()) + "/.Immich-desktop-client/shelve"
+            self.__shelve_path = str(Path.home()) + "/.buicha-photo/shelve"
         else:
             self.__shelve_path = shelve_path
 
@@ -38,32 +37,33 @@ class Immich:
             self.__album_id = album_id
 
     def upload_all_images(self, directories, media_file_extensions):
+        stored_files = {}
         try:
             with shelve.open(self.__shelve_path, flag='r') as db:
                 print("catch up with files already stored in shelve")
-                data = db.keys()
-                for key in data:
-                    if os.path.isfile(key):
-                        if self.__get_sha1(key) != db[key][1]:
-                            self.created(str(key))
-                    else:
-                        self.delete(key)
-
-                print("uploading new files")
-                matching_files = []
-                for directory in directories:
-                    for filename in os.listdir(directory):
-                        if filename.endswith(media_file_extensions):
-                            matching_files.append(os.path.join(directory, filename))
-
-                for file in matching_files:
-                    if file not in db:
-                        self.created(file)
-
-
+                stored_files = {key: db[key] for key in db.keys()}
         except dbm.error:
             print("cant open non-existing shelve")
 
+        for file, stored_data in stored_files.items():
+            if os.path.isfile(file):
+                if self.__get_sha1(file) != stored_data[1]:
+                    self.created(file)
+            else:
+                self.delete(file)
+
+        print("uploading new files")
+        for directory in directories:
+            if not os.path.isdir(directory):
+                print("watch directory is not available yet: " + directory)
+                continue
+
+            for root, _, filenames in os.walk(directory):
+                for filename in filenames:
+                    if filename.lower().endswith(media_file_extensions):
+                        file = os.path.join(root, filename)
+                        if file not in stored_files:
+                            self.created(file)
     def created(self, file):
         try:
             stats = self.__get_file_stats(file)
@@ -186,7 +186,7 @@ class Immich:
         }
         response = requests.request("POST", self.__immichHost + "/albums", headers=headers, data=payload)
         print("Successfully created album " + str(response.json()))
-        return json.loads(response.text)['asset_id']
+        return json.loads(response.text)['id']
 
     def __get_album_id(self):
         headers = {
@@ -275,7 +275,16 @@ class Immich:
 
     @staticmethod
     def __get_uuid():
-        return str(subprocess.check_output('wmic csproduct get uuid')).split('\\r\\n')[1].strip('\\r').strip()
+        # Read the per-machine GUID from the registry. Avoids spawning a console
+        # subprocess (wmic), which both flashes a window in the no-console build
+        # and is unavailable on newer Windows releases.
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                                r"SOFTWARE\Microsoft\Cryptography") as key:
+                return winreg.QueryValueEx(key, "MachineGuid")[0]
+        except OSError:
+            return socket.gethostname()
 
     def test_connection(self):
         headers = {
